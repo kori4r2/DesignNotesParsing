@@ -4,8 +4,8 @@ var http = require("http");
 var fs = require("fs");
 var DesignNote = require ("./designNotes.js");
 // Variables
-var pageUrl = "http://www.dragonfable.com/gamedesignnotes/"
-var lastCheckLocation = "./lastCheck.json"
+const pageUrl = "http://www.dragonfable.com/gamedesignnotes/"
+const lastCheckLocation = "./lastCheck.json"
 var codeString = "";
 //DEBUG: this variable helps with debugging the code, forcing it to skip some updates
 var delay = 1;
@@ -62,7 +62,7 @@ var response = http.get(pageUrl, function(response){
 				//TO DO
 				//Format a discord embed and send it somewhere as a string
 				//DEBUG: Write a notification when a new post is detected
-				console.log("\n===========================================================================================\n\tNew design notes by " + currentPosts[i].author + " detected!\tDate: "+ currentPosts[i].date + "\n\tText: " + currentPosts[i].text + "\n\tAuthor Icon: " + currentPosts[i].authorImage + "\n\tLink to the post: " + currentPosts[i].link + "\n\tImages in this post:");
+				console.log("\n===========================================================================================\n\tNew design notes by " + currentPosts[i].author + " detected!\tDate: "+ currentPosts[i].date + "\n\tText:\n" + currentPosts[i].text + "\n\tAuthor Icon: " + currentPosts[i].authorImage + "\n\tLink to the post: " + currentPosts[i].link + "\n\tImages in this post:");
 				for(var k = 0; (currentPosts[i].imageLinks != null) && (k < currentPosts[i].imageLinks.length); k++){
 					console.log("\t\t" + currentPosts[i].imageLinks[k]);
 				}

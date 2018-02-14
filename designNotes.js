@@ -1,6 +1,6 @@
 "use strict";
 
-var prefix = "www.dragonfable.com";
+const prefix = "www.dragonfable.com";
 var linkAux = "";
 var imageCounter = 0;
 
@@ -25,12 +25,15 @@ function processHTMLTag(tag){
 			else
 				return "\t• ";
 			break;
+/*
+		// Didn't work out very well
 		case "ul":
 			// When indicating beginning of list, add a line break
 			if(tag.indexOf("/") > -1)
 				return "";
 			else
 				return "\n";
+*/
 		case "a":
 			// When ending link, add the address as per discord rich embed syntax
 			if((tag.indexOf("/") > -1) && (tag.indexOf("/") < tag.indexOf("a"))){

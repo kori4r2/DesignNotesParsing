@@ -1,4 +1,4 @@
 debug:
-	node getCode.js 9 >htmlcode.out
-	node getCode.js >htmlcode.out
+	node getDNUpdates.js 9 >htmlcode.out
+	node getDNUpdates.js >htmlcode.out
 	vim htmlcode.out
