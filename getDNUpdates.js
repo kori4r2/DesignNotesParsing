@@ -7,6 +7,8 @@ var DesignNote = require ("./designNotes.js");
 var pageUrl = "http://www.dragonfable.com/gamedesignnotes/"
 var lastCheckLocation = "./lastCheck.json"
 var codeString = "";
+//DEBUG: this variable helps with debugging the code, forcing it to skip some updates
+var delay = 1;
 
 var response = http.get(pageUrl, function(response){
 	// The page html code will be received as a text string
@@ -21,10 +23,13 @@ var response = http.get(pageUrl, function(response){
 		// split code between DN posts
 		var stringArray = codeString.split("<td align=\"center\" valign=\"top\">");
 		var currentPosts = [];
+		if(process.argv.length == 3)
+			delay = process.argv[2];
 		// Ignores the first code block, as it contains no relevant info for this
-		for(var i = 1; i < stringArray.length; i++){
+		//DEBUG: delay will always be 1, unless a command line argument is used for debugs
+		for(var i = delay; i < stringArray.length; i++){
 			// Create an array with all the posts contained in the html code
-			currentPosts[i-1] = new DesignNote(stringArray[i]);
+			currentPosts[i-delay] = new DesignNote(stringArray[i]);
 		}
 		
 		// Loads the last saved design notes list from json file
@@ -57,7 +62,10 @@ var response = http.get(pageUrl, function(response){
 				//TO DO
 				//Format a discord embed and send it somewhere as a string
 				//DEBUG: Write a notification when a new post is detected
-				console.log("\n===========================================================================================\n\tNew design notes by " + currentPosts[i].author + " detected!\tDate: "+ currentPosts[i].date + "\n" + "\tText: " + currentPosts[i].text);
+				console.log("\n===========================================================================================\n\tNew design notes by " + currentPosts[i].author + " detected!\tDate: "+ currentPosts[i].date + "\n\tText: " + currentPosts[i].text + "\n\tAuthor Icon: " + currentPosts[i].authorImage + "\n\tLink to the post: " + currentPosts[i].link + "\n\tImages in this post:");
+				for(var k = 0; (currentPosts[i].imageLinks != null) && (k < currentPosts[i].imageLinks.length); k++){
+					console.log("\t\t" + currentPosts[i].imageLinks[k]);
+				}
 			}
 		}
 		
