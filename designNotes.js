@@ -57,10 +57,10 @@ function processHTMLTag(tag){
 				return "[";
 			}
 		case "img":
-			// Lord Gabriel dislikes this buffoonery, removed
 			return "\b";
 		case "hr":
-			// In case of thematic break
+			// In case of thematic break adds two line breaks,
+			// I didn't have a better idea that looks good
 			return "\n\n";
 		case "strong":
 			// For the strong tag, use discord's bold markdown
@@ -90,17 +90,23 @@ function cleanHTMLCode(string){
 		// Get the index of the html element end
 		curPos = 1 + string.indexOf(">", nextCommand);
 		var tag = string.substring(nextCommand+1, curPos-1);
-		// If it's a link, check if it's the only content of a paragraph
+		// If it's a link, check if it's the only content of a paragraph (curse those lovecraftian beings and their cryptic previews)
 		if(tag.split(/[^A-Za-z]/).filter(Boolean)[0] == "a" && tag.indexOf("/") > tag.indexOf("a")){
+			// If the link is the first thing inside the paragraph
 			if(previousLength - cleanString.length <= 2){
+				// Skips the <a> tag being analysed
 				var i = string.indexOf("<", curPos);
 				var j = string.indexOf(">", i);
+				// Gets the next tag after the <a> tag (should be a </p> on the relevant cases)
 				i = string.indexOf("<", j);
+				// Gets the content between these two tags
 				var paragraphContent = (i-1) - (j+1);
 				j = string.indexOf(">", i);
+				// Temporarily saves the next tag
 				var tempTag = string.substring(i+1, j);
+				// If the next tag is indeed a </p> tag and there are no other characters between then
 				if(tempTag.split(/[^A-Za-z]/).filter(Boolean)[0] == "p" && tempTag.indexOf("/") > -1 && paragraphContent <= 2){
-					// If the link is really the only content of the paragraph, update variables to skip it
+					// Updatee variables to skip this paragraph entirely, ignoring the link
 					nextCommand = i;
 					curPos = j + 1;
 					tag = tempTag;
@@ -139,17 +145,11 @@ function cleanHTMLCode(string){
 		nextCommand = string.indexOf("<", curPos);
 	}
 	cleanString += string.substring(curPos);
-	/*
-	// If the entire DN text is below the maximum summary size, save everything
-	if(cleanString.length <= summaryMaxChars){
-		indexOfSummary = cleanString.length;
-	}
-	*/
 	// If the entire DN is one big paragraph above the limit, save everything
 	if(curParagraph  == 0){
 		indexOfSummary = cleanString.length;
 	}
-
+	// Returns the clean string and the position where the summary should end
 	return [cleanString, indexOfSummary];
 }
 
@@ -184,9 +184,9 @@ function parseDNs(array, string){
 	j = string.indexOf(">", i);
 	k = string.indexOf("<font color", j);
 	array[5] = string.substring((j+1), k);
-	// Creates placeholder for summary, to make sure its on the 7th position
+	// Creates placeholder for summary, to make sure its on the 7th position of the array
 	array[6] = "placeholder";
-	// Stores all the image links inside the DN text inside the array
+	// Stores all the image links inside the DN text at the end of the array
 	i = array[5].indexOf("<img");
 	while(i > -1){
 		j = array[5].indexOf("src", i);
@@ -195,10 +195,11 @@ function parseDNs(array, string){
 		array.push(array[5].substring((j+1), k));
 		i = array[5].indexOf("<img", k);
 	}
-	// Cleans html code from the DN text, replacing links with discord embed sytax
+	// Cleans html code from the DN text, replacing links with discord embed syntax
 	var auxArr = [];
 	auxArr = cleanHTMLCode(array[5]);
 	// Applies \b characters inserted in place of images
+	// (Images usually have line breaks before and after them, this avoids creating weird empty lines)
 	i = auxArr[0].indexOf("\b");
 	while(i > -1){
 		auxArr[0] = auxArr[0].substring(0, i-1) + auxArr[0].substring(i+2);
@@ -206,6 +207,7 @@ function parseDNs(array, string){
 			auxArr[1] -= 3;
 		i = auxArr[0].indexOf("\b");
 	}
+	// Saves text and summary to respective array positions
 	array[5] = auxArr[0];
 	i = auxArr[1];
 	array[6] = array[5].substring(0, i);
@@ -271,8 +273,8 @@ module.exports = class DesignNote{
 				return false;
 			if((this.title != other.title))
 				return false;
-			// Commenting this last comparison because it seems unnecessary
-			// (Also because I'd have to recreate the json file after changing the text parsing method)
+			// Commenting these last comparisons because they seem unnecessary
+			// (Also because I'd have to recreate the json file everytime after changing the text parsing method)
 			/*
 			if((this.text != other.text))
 				return false;

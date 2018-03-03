@@ -7,11 +7,17 @@ var Discord = require("discord.js");
 // Variables
 const pageUrl = "http://www.dragonfable.com/gamedesignnotes/"
 var codeString = "";
+// To change the name or the location of the file where the last DN check will be saved,
+// change this variable
 const lastCheckLocation = "./lastDNs.json";
 module.exports.historyLocation = lastCheckLocation;
+// To change how many minutes are between checks, change this value
+// It should be X * 60 * 1000 where X is time in minutes between each DN check
 module.exports.timeout = 5 * 60 * 1000;
+// To change how many paragraphs are taken, counting from beginning of DNs,
+// to form the summary change this variable
 module.exports.numParagraphs = 2;
-//DEBUG: these variables help with debugging the code, forcing it to skip some updates
+//DEBUG: these variables help with debugging the code, forcing it to skip some updates as needed (don't change them)
 var delay = 1;
 var debug = 0;
 
@@ -36,6 +42,7 @@ function getDNs(channel){
 			if(process.argv.length == 3)
 				delay = process.argv[2];
 */
+			// Set the number of paragraphs desired for summarizing the DNs
 			DesignNote.numParagraphs = module.exports.numParagraphs;
 			for(var i = delay; i < stringArray.length; i++){
 				// Create an array with all the posts contained in the html code
@@ -52,7 +59,10 @@ function getDNs(channel){
 					console.log(lastCheckLocation + " was not found, creating the file with the currentPosts array...");
 					fs.writeFileSync(lastCheckLocation, JSON.stringify(currentPosts));
 					fileArray = JSON.parse(fs.readFileSync(lastCheckLocation));
-				}else throw(error);
+				}else{
+					console.error(error.message);
+					throw(error);
+				}
 			}
 
 			// Creates an array of DesignNote class elements to store the file contents (should be unnecessary honestly)
@@ -69,8 +79,10 @@ function getDNs(channel){
 					if(lastCheckPosts[j].Equals(currentPosts[i]))
 						newPost = false;
 				}
+				// Whenever a new post is found
 				if(newPost){
-					//Format a discord embed and send it to the desired channel
+					// Format a discord embed and send it to the desired channel
+					// Documentation for editing this part can be found here: https://discord.js.org/#/docs/main/stable/class/RichEmbed
 					var embed = new Discord.RichEmbed();
 					embed.setTitle(currentPosts[i].title);
 					embed.setURL(currentPosts[i].link);
