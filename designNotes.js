@@ -1,23 +1,33 @@
 "use strict";
 
-const prefix = "www.dragonfable.com";
+const prefix = "http://www.dragonfable.com";
 var linkAux = "";
-var imageCounter = 0;
+var paragraphsCounter = 0;
+var parStarted = false;
+var parEnded = false;
+const summaryMaxChars = 500;
+module.exports.numParagraphs = 2;
 
 function processHTMLTag(tag){
 	// Get the element described by this tag
 	var element = tag.split(/[^A-Za-z]/).filter(Boolean)[0];
 	var i, j, k;
+	// Each case of this switch statement interprets one command
 	switch(element){
 		case "br":
 			// Return line break character
 			return "\n";
 		case "p":
-			// In case o paragraph definition, adds line break
-			if(tag.indexOf("/") > -1)
+			paragraphsCounter++;
+			// In case of paragraph definition, adds line break
+			// and store if it's an end or a start of paragraph
+			if(tag.indexOf("/") > -1){
+				parEnded = true;
 				return "\n";
-			else
+			}else{
+				parStarted = true;
 				return "";
+			}
 		case "li":
 			// In case of a list, adds the bulletpoint character and tab spacing or line break as needed
 			if(tag.indexOf("/") > -1)
@@ -26,7 +36,7 @@ function processHTMLTag(tag){
 				return "\t• ";
 			break;
 /*
-		// Didn't work out very well
+		// Didn't work out very well, removed
 		case "ul":
 			// When indicating beginning of list, add a line break
 			if(tag.indexOf("/") > -1)
@@ -47,25 +57,13 @@ function processHTMLTag(tag){
 				return "[";
 			}
 		case "img":
-			// In case of image, try to get the title
-			var title = "";
-			i = tag.indexOf("title");
-			if(i > -1){
-				j = tag.indexOf("\"", i);
-				k = tag.indexOf("\"", j+1);
-				title = tag.substring(j+1, k);
-			}
-			// If there is no title, change title string to indicate so
-			if(title == "")
-				title = "No title"
-			// Return a placeholder for the image
-			imageCounter++;
-			return"[Image " + imageCounter + " (\""+ title +"\")]";
+			// Lord Gabriel dislikes this buffoonery, removed
+			return "\b";
 		case "hr":
 			// In case of thematic break
 			return "\n\n";
 		case "strong":
-			// For the string tag, use discord's bold markdown
+			// For the strong tag, use discord's bold markdown
 			return "**";
 /* 
 		// Just leaving this here to facilitate adding more elements
@@ -80,19 +78,79 @@ function processHTMLTag(tag){
 function cleanHTMLCode(string){
 	var cleanString = "";
 	var curPos = 0;
+	var curParagraph = 0;
 	var nextCommand = string.indexOf("<");
+	var indexOfSummary = 0;
+	var previousLength = 0;
+	paragraphsCounter = 0;
+
 	while(nextCommand > -1){
 		// Append text to cleanString variable
 		cleanString += string.substring(curPos, nextCommand);
 		// Get the index of the html element end
 		curPos = 1 + string.indexOf(">", nextCommand);
+		var tag = string.substring(nextCommand+1, curPos-1);
+		// If it's a link, check if it's the only content of a paragraph
+		if(tag.split(/[^A-Za-z]/).filter(Boolean)[0] == "a" && tag.indexOf("/") > tag.indexOf("a")){
+			if(previousLength - cleanString.length <= 2){
+				var i = string.indexOf("<", curPos);
+				var j = string.indexOf(">", i);
+				i = string.indexOf("<", j);
+				var paragraphContent = (i-1) - (j+1);
+				j = string.indexOf(">", i);
+				var tempTag = string.substring(i+1, j);
+				if(tempTag.split(/[^A-Za-z]/).filter(Boolean)[0] == "p" && tempTag.indexOf("/") > -1 && paragraphContent <= 2){
+					// If the link is really the only content of the paragraph, update variables to skip it
+					nextCommand = i;
+					curPos = j + 1;
+					tag = tempTag;
+				}
+			}
+		}
 		// Process the element
-		cleanString += processHTMLTag(string.substring(nextCommand+1, curPos-1));
+		cleanString += processHTMLTag(tag);
+		// If an end or beginning of paragraph was detected
+		if(paragraphsCounter <= module.exports.numParagraphs && paragraphsCounter > curParagraph){
+			// In case of paragraph end
+			if(parEnded){
+				parEnded = false;
+				// Checks if the paragraph has a valid size
+				if((cleanString.length - previousLength) > 4){
+					// Updates the counter
+					curParagraph = paragraphsCounter;
+					// Stores index of current position
+					indexOfSummary = cleanString.length;
+					// Makes sure the counter is not decremented
+					paragraphsCounter++;
+				}
+				// If the paragraph is invalid, decrement counter
+				paragraphsCounter--;
+			}
+			// In case of paragraph start
+			if(parStarted){
+				parStarted = false;
+				// Updates length on beginning of paragraph to allow checking of size
+				previousLength = cleanString.length;
+				// Decrement counter
+				paragraphsCounter--;
+			}
+		}
 		// Look for next html element
 		nextCommand = string.indexOf("<", curPos);
 	}
 	cleanString += string.substring(curPos);
-	return cleanString;
+	/*
+	// If the entire DN text is below the maximum summary size, save everything
+	if(cleanString.length <= summaryMaxChars){
+		indexOfSummary = cleanString.length;
+	}
+	*/
+	// If the entire DN is one big paragraph above the limit, save everything
+	if(curParagraph  == 0){
+		indexOfSummary = cleanString.length;
+	}
+
+	return [cleanString, indexOfSummary];
 }
 
 function parseDNs(array, string){
@@ -126,6 +184,8 @@ function parseDNs(array, string){
 	j = string.indexOf(">", i);
 	k = string.indexOf("<font color", j);
 	array[5] = string.substring((j+1), k);
+	// Creates placeholder for summary, to make sure its on the 7th position
+	array[6] = "placeholder";
 	// Stores all the image links inside the DN text inside the array
 	i = array[5].indexOf("<img");
 	while(i > -1){
@@ -136,8 +196,19 @@ function parseDNs(array, string){
 		i = array[5].indexOf("<img", k);
 	}
 	// Cleans html code from the DN text, replacing links with discord embed sytax
-	imageCounter = 0;
-	array[5] = cleanHTMLCode(array[5]);
+	var auxArr = [];
+	auxArr = cleanHTMLCode(array[5]);
+	// Applies \b characters inserted in place of images
+	i = auxArr[0].indexOf("\b");
+	while(i > -1){
+		auxArr[0] = auxArr[0].substring(0, i-1) + auxArr[0].substring(i+2);
+		if(i < auxArr[1])
+			auxArr[1] -= 3;
+		i = auxArr[0].indexOf("\b");
+	}
+	array[5] = auxArr[0];
+	i = auxArr[1];
+	array[6] = array[5].substring(0, i);
 }
 
 module.exports = class DesignNote{
@@ -150,6 +221,7 @@ module.exports = class DesignNote{
 			this.link = "link";
 			this.title = "title";
 			this.text = "text";
+			this.summary = "summary";
 			this.imageLinks = ["image", "links"];
 		}else{
 			// Parsing constructor
@@ -163,14 +235,15 @@ module.exports = class DesignNote{
 			this.link = array[3];
 			this.title = array[4];
 			this.text = array[5];
-			this.imageLinks = array.slice(6);
+			this.summary = array[6];
+			this.imageLinks = array.slice(7);
 		}
 	}
 
 	// Copy contents of an object (not necessarily of this class)
 	Copy(other){
 		// Checks if the other object has the fields for comparison
-		if(other.hasOwnProperty("author") && other.hasOwnProperty("date") && other.hasOwnProperty("link") && other.hasOwnProperty("title") && other.hasOwnProperty("text") && other.hasOwnProperty("authorImage") && other.hasOwnProperty("imageLinks")){
+		if(other.hasOwnProperty("author") && other.hasOwnProperty("date") && other.hasOwnProperty("link") && other.hasOwnProperty("title") && other.hasOwnProperty("text") && other.hasOwnProperty("authorImage") && other.hasOwnProperty("imageLinks") && other.hasOwnProperty("summary")){
 			// Copies all fields
 			this.author = other.author;
 			this.authorImage = other.authorImage;
@@ -178,16 +251,17 @@ module.exports = class DesignNote{
 			this.link = other.link;
 			this.title = other.title;
 			this.text = other.text;
+			this.summary = other.summary;
 			this.imageLinks = other.imageLinks;
 		}else{
-			console.log("Object passed for copying does not have the necessary properties");
+			console.error("Object passed for copying does not have the necessary properties");
 		}
 	}
 
 	// Compares the fields of two objects
 	Equals(other){
 		// Checks if the other object has the fields for comparison
-		if(other.hasOwnProperty("author") && other.hasOwnProperty("date") && other.hasOwnProperty("link") && other.hasOwnProperty("title") && other.hasOwnProperty("text") && other.hasOwnProperty("authorImage") && other.hasOwnProperty("imageLinks")){
+		if(other.hasOwnProperty("author") && other.hasOwnProperty("date") && other.hasOwnProperty("link") && other.hasOwnProperty("title") && other.hasOwnProperty("text") && other.hasOwnProperty("authorImage") && other.hasOwnProperty("imageLinks") && other.hasOwnProperty("summary")){
 			// Compares relevant fields
 			if((this.author != other.author))
 				return false;
@@ -202,9 +276,11 @@ module.exports = class DesignNote{
 			/*
 			if((this.text != other.text))
 				return false;
+			if((this.summary != other.summary))
+				return false;
 			*/
 		}else{
-			console.log("Object passed for comparison does not have the necessary properties");
+			console.error("Object passed for comparison does not have the necessary properties");
 		}
 		return true;
 	}
